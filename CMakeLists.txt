@@ -44,7 +44,7 @@ endif()
 
 #
 OPTION(BUILD_UTILS	"Set to OFF to not build utils" ON)
-OPTION(USE_CONTRIB 	"Set to ON if contrib are installed" OFF)
+OPTION(USE_CONTRIB 	"Set to ON if contrib are installed" ON)
 OPTION(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" ON)
 
 # ----------------------------------------------------------------------------
@@ -52,6 +52,7 @@ OPTION(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" ON)
 # ----------------------------------------------------------------------------
 find_package(OpenCV  REQUIRED)
 IF(USE_CONTRIB)
+MESSAGE( STATUS "USE_CONTRIB= ${USE_CONTRIB}" )
 add_definitions(-DUSE_CONTRIB)
 ENDIF()
 if(NOT OpenCV_VERSION VERSION_LESS "3.0")

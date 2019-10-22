@@ -27,7 +27,8 @@ class CmdLineParser{int argc; char **argv; public: CmdLineParser(int _argc,char 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // extended surf gives 128-dimensional vectors
-const bool EXTENDED_SURF = false;
+const bool EXTENDED_SURF = true;
+const bool EXTENDED_SIFT = true;
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 void wait()
@@ -53,6 +54,7 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
 #endif
 #ifdef USE_CONTRIB
     else if(descriptor=="surf" )  fdetector=cv::xfeatures2d::SURF::create(400, 4, 2, EXTENDED_SURF);
+    else if(descriptor=="sift") fdetector=cv::xfeatures2d::SIFT::create(2000, 4, 2, EXTENDED_SIFT);
 #endif
 
     else throw std::runtime_error("Invalid descriptor");

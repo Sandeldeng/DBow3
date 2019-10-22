@@ -20,6 +20,7 @@
 #include <opencv2/xfeatures2d.hpp>
 #endif
 #include "DescManip.h"
+#include "dirreader.h"
 
 using namespace DBoW3;
 using namespace std;
@@ -32,7 +33,8 @@ class CmdLineParser{int argc; char **argv; public: CmdLineParser(int _argc,char 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // extended surf gives 128-dimensional vectors
-const bool EXTENDED_SURF = false;
+const bool EXTENDED_SURF = true;
+const bool EXTENDED_SIFT = true;
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 void wait()
@@ -48,9 +50,11 @@ vector<string> readImagePaths(int argc,char **argv,int start){
         return paths;
 }
 
-vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string descriptor="") throw (std::exception){
+vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string descriptor="") {
     //select detector
     cv::Ptr<cv::Feature2D> fdetector;
+    cv::Ptr<cv::FeatureDetector> featureDetector;
+    cv::Ptr<cv::DescriptorExtractor> descriptorExtractor;
     if (descriptor=="orb")        fdetector=cv::ORB::create();
     else if (descriptor=="brisk") fdetector=cv::BRISK::create();
 #ifdef OPENCV_VERSION_3
@@ -58,9 +62,15 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
 #endif
 #ifdef USE_CONTRIB
     else if(descriptor=="surf" )  fdetector=cv::xfeatures2d::SURF::create(400, 4, 2, EXTENDED_SURF);
+    else if(descriptor=="sift" )
+    {
+        featureDetector = cv::xfeatures2d::SIFT::create(3000, 5);
+        descriptorExtractor = cv::xfeatures2d::SIFT::create(3000, 5);
+    }
 #endif
 
-    else throw std::runtime_error("Invalid descriptor");
+    else
+        std::cout<<"Invalid descriptor"<<std::endl;
     assert(!descriptor.empty());
     vector<cv::Mat>    features;
 
@@ -72,9 +82,23 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
         cv::Mat descriptors;
         cout<<"reading image: "<<path_to_images[i]<<endl;
         cv::Mat image = cv::imread(path_to_images[i], 0);
-        if(image.empty())throw std::runtime_error("Could not open image"+path_to_images[i]);
+        if(image.empty())
+        {
+            std::cerr<<"Could not open image: "<<path_to_images[i]<<std::endl;
+            continue;
+        }
         cout<<"extracting features"<<endl;
+    #ifdef USE_CONTRIB
+        if(descriptor == "sift") 
+        {
+            featureDetector->detect(image, keypoints);
+            cv::Mat descriptors;
+            descriptorExtractor->compute(image, keypoints, descriptors);
+        }
+    #else
         fdetector->detectAndCompute(image, cv::Mat(), keypoints, descriptors);
+    #endif
+        cout<<"extracted "<<keypoints.size()<<" keypoints."<<std::endl;
         features.push_back(descriptors);
         cout<<"done detecting features"<<endl;
     }
@@ -83,11 +107,11 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
 
 // ----------------------------------------------------------------------------
 
-void testVocCreation(const vector<cv::Mat> &features)
+void testVocCreation(const vector<cv::Mat> &features, const std::string pathToSave)
 {
     // branching factor and depth levels
-    const int k = 9;
-    const int L = 3;
+    const int k = 10;
+    const int L = 6;
     const WeightingType weight = TF_IDF;
     const ScoringType score = L1_NORM;
 
@@ -102,22 +126,22 @@ void testVocCreation(const vector<cv::Mat> &features)
 
     // lets do something with this vocabulary
     cout << "Matching images against themselves (0 low, 1 high): " << endl;
-    BowVector v1, v2;
-    for(size_t i = 0; i < features.size(); i++)
-    {
-        voc.transform(features[i], v1);
-        for(size_t j = 0; j < features.size(); j++)
-        {
-            voc.transform(features[j], v2);
+    // BowVector v1, v2;
+    // for(size_t i = 0; i < features.size(); i++)
+    // {
+    //     voc.transform(features[i], v1);
+    //     for(size_t j = 0; j < features.size(); j++)
+    //     {
+    //         voc.transform(features[j], v2);
 
-            double score = voc.score(v1, v2);
-            cout << "Image " << i << " vs Image " << j << ": " << score << endl;
-        }
-    }
+    //         double score = voc.score(v1, v2);
+    //         cout << "Image " << i << " vs Image " << j << ": " << score << endl;
+    //     }
+    // }
 
     // save the vocabulary to disk
     cout << endl << "Saving vocabulary..." << endl;
-    voc.save("small_voc.yml.gz");
+    voc.save(pathToSave.c_str(),true);
     cout << "Done" << endl;
 }
 
@@ -186,10 +210,14 @@ int main(int argc,char **argv)
         }
 
         string descriptor=argv[1];
+        string output = argv[2];
+        auto images = DirReader::read(argv[3]);
+        std::cout<<"images.size() = "<<images.size()<<std::endl;
+        for(int i = 0; i<images.size(); i++)
+            std::cout<<"images["<<i<<"] = "<<images[i]<<std::endl;
 
-        auto images=readImagePaths(argc,argv,2);
         vector< cv::Mat   >   features= loadFeatures(images,descriptor);
-        testVocCreation(features);
+        testVocCreation(features, output);
 
 
         testDatabase(features);
