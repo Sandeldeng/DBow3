@@ -50,7 +50,10 @@ OPTION(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" ON)
 # ----------------------------------------------------------------------------
 #   Find Dependencies
 # ----------------------------------------------------------------------------
-find_package(OpenCV  REQUIRED)
+#find_package(OpenCV  REQUIRED)
+find_package(OpenCV  REQUIRED PATHS "/home/sandel/software/opencv3.4/build" NO_DEFAULT_PATH)
+set(LD_LIBRARY_PATH, "/home/sandel/software/opencv3.4/build/lib")
+
 IF(USE_CONTRIB)
 MESSAGE( STATUS "USE_CONTRIB= ${USE_CONTRIB}" )
 add_definitions(-DUSE_CONTRIB)

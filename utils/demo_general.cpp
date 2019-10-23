@@ -33,8 +33,7 @@ class CmdLineParser{int argc; char **argv; public: CmdLineParser(int _argc,char 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 // extended surf gives 128-dimensional vectors
-const bool EXTENDED_SURF = true;
-const bool EXTENDED_SIFT = true;
+const bool EXTENDED_SURF = false;
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 void wait()
@@ -50,11 +49,10 @@ vector<string> readImagePaths(int argc,char **argv,int start){
         return paths;
 }
 
-vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string descriptor="") {
+vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string descriptor="")
+{
     //select detector
     cv::Ptr<cv::Feature2D> fdetector;
-    cv::Ptr<cv::FeatureDetector> featureDetector;
-    cv::Ptr<cv::DescriptorExtractor> descriptorExtractor;
     if (descriptor=="orb")        fdetector=cv::ORB::create();
     else if (descriptor=="brisk") fdetector=cv::BRISK::create();
 #ifdef OPENCV_VERSION_3
@@ -62,11 +60,7 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
 #endif
 #ifdef USE_CONTRIB
     else if(descriptor=="surf" )  fdetector=cv::xfeatures2d::SURF::create(400, 4, 2, EXTENDED_SURF);
-    else if(descriptor=="sift" )
-    {
-        featureDetector = cv::xfeatures2d::SIFT::create(3000, 5);
-        descriptorExtractor = cv::xfeatures2d::SIFT::create(3000, 5);
-    }
+    else if(descriptor=="sift") fdetector=cv::xfeatures2d::SIFT::create(1000, 4);
 #endif
 
     else
@@ -84,21 +78,12 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
         cv::Mat image = cv::imread(path_to_images[i], 0);
         if(image.empty())
         {
-            std::cerr<<"Could not open image: "<<path_to_images[i]<<std::endl;
+            std::cout<<"Could not open image: "<<path_to_images[i]<<std::endl;
             continue;
         }
         cout<<"extracting features"<<endl;
-    #ifdef USE_CONTRIB
-        if(descriptor == "sift") 
-        {
-            featureDetector->detect(image, keypoints);
-            cv::Mat descriptors;
-            descriptorExtractor->compute(image, keypoints, descriptors);
-        }
-    #else
+        std::cout<<"image: "<<image.rows<<" * "<<image.cols<<std::endl;
         fdetector->detectAndCompute(image, cv::Mat(), keypoints, descriptors);
-    #endif
-        cout<<"extracted "<<keypoints.size()<<" keypoints."<<std::endl;
         features.push_back(descriptors);
         cout<<"done detecting features"<<endl;
     }
@@ -107,7 +92,7 @@ vector< cv::Mat  >  loadFeatures( std::vector<string> path_to_images,string desc
 
 // ----------------------------------------------------------------------------
 
-void testVocCreation(const vector<cv::Mat> &features, const std::string pathToSave)
+void testVocCreation(const vector<cv::Mat> &features)
 {
     // branching factor and depth levels
     const int k = 10;
@@ -125,7 +110,7 @@ void testVocCreation(const vector<cv::Mat> &features, const std::string pathToSa
          << voc << endl << endl;
 
     // lets do something with this vocabulary
-    cout << "Matching images against themselves (0 low, 1 high): " << endl;
+    // cout << "Matching images against themselves (0 low, 1 high): " << endl;
     // BowVector v1, v2;
     // for(size_t i = 0; i < features.size(); i++)
     // {
@@ -141,7 +126,7 @@ void testVocCreation(const vector<cv::Mat> &features, const std::string pathToSa
 
     // save the vocabulary to disk
     cout << endl << "Saving vocabulary..." << endl;
-    voc.save(pathToSave.c_str(),true);
+    voc.save("small_voc.yml.gz");
     cout << "Done" << endl;
 }
 
@@ -205,22 +190,20 @@ int main(int argc,char **argv)
     try{
         CmdLineParser cml(argc,argv);
         if (cml["-h"] || argc<=2){
-            cerr<<"Usage:  descriptor_name     image0 image1 ... \n\t descriptors:brisk,surf,orb ,akaze(only if using opencv 3)"<<endl;
+            cerr<<"Usage:  descriptor_name     path_to_image_dir \n\t descriptors:brisk,surf,orb ,akaze(only if using opencv 3)"<<endl;
              return -1;
         }
 
         string descriptor=argv[1];
-        string output = argv[2];
-        auto images = DirReader::read(argv[3]);
-        std::cout<<"images.size() = "<<images.size()<<std::endl;
-        for(int i = 0; i<images.size(); i++)
-            std::cout<<"images["<<i<<"] = "<<images[i]<<std::endl;
+
+        auto images = DirReader::read(argv[2]);
+        std::cout<<"argv[2] = "<<argv[2]<<std::endl;
+        for(int i = 0; i<images.size();i++)
+            std::cout<<"image["<<i<<"] = "<<images[i]<<std::endl;
 
         vector< cv::Mat   >   features= loadFeatures(images,descriptor);
-        testVocCreation(features, output);
-
-
-        testDatabase(features);
+        testVocCreation(features);
+        // testDatabase(features);
 
     }catch(std::exception &ex){
         cerr<<ex.what()<<endl;

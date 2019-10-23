@@ -143,10 +143,12 @@ void Vocabulary::create(
   const std::vector< cv::Mat > &training_features)
 {
     std::vector<std::vector<cv::Mat> > vtf(training_features.size());
+    int total = training_features.size();
     for(size_t i=0;i<training_features.size();i++){
         vtf[i].resize(training_features[i].rows);
         for(int r=0;r<training_features[i].rows;r++)
             vtf[i][r]=training_features[i].rowRange(r,r+1);
+        std::cout<<"Total is "<<total<<", now is "<<i<<std::endl;
     }
     create(vtf);
 
